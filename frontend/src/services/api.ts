@@ -1,6 +1,6 @@
 import type { AnalysisResult } from '@/types'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001').replace(/\/+$/, '')
 
 // ── Backend response shape (matches backend/src/types/analysis.ts) ────────────
 

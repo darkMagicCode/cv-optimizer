@@ -13,6 +13,9 @@ const app = express()
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
+// Railway runs behind a reverse proxy and forwards client IP headers.
+app.set('trust proxy', 1)
+
 app.use(cors({
   origin:      env.NODE_ENV === 'production' ? false : '*',
   credentials: true,
