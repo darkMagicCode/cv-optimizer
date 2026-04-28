@@ -49,7 +49,14 @@ export class RecommenderAgent extends BaseAgent {
       ? `\n\n### Improvement Context\n\n${ragContext}`
       : ''
 
-    const { gapData, scoreData, roleProfile } = state
+    const { gapData, scoreData, roleProfile, cvProfile } = state
+
+    const presentLinks = cvProfile
+      ? Object.entries(cvProfile.links)
+          .filter(([, v]) => v && v.trim() !== '')
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')
+      : 'unknown'
 
     const userMessage = `
 Generate improvement recommendations for this candidate.${ragBlock}
@@ -66,6 +73,9 @@ Missing skills: ${gapData.missingSkills.join(', ') || 'none'}
 Partial skills: ${gapData.partialSkills.map(p => `${p.skill} (${p.note})`).join('; ') || 'none'}
 Missing sections: ${gapData.missingSections.map(s => s.section).join(', ') || 'none'}
 Experience gaps: ${gapData.experienceGaps.join(', ') || 'none'}
+
+### Links Already Present in CV (NEVER recommend adding these)
+${presentLinks || 'none'}
 
 ### Target Role
 Job title: ${roleProfile.jobTitle}

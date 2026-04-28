@@ -17,16 +17,20 @@ Return ONLY valid JSON:
 }
 
 Classification rules:
-- existingSkills: skills clearly evidenced in job descriptions, projects, or practical context
-- missingSkills: skills with ZERO presence in the CV — check for aliases first
+- existingSkills: skills clearly evidenced in job descriptions, projects, summary, OR practical context
+- missingSkills: skills with ZERO presence anywhere in the CV (skills list, summary, experience, projects) — check aliases first
 - partialSkills: skills mentioned but without practical/contextual evidence; "note" must explain exactly what evidence is missing
 - missingSections: required CV sections absent from the candidate's document; "reason" must explain why that section matters for this specific role
 - experienceGaps: types of work history the role requires that the CV lacks entirely
 
 IMPORTANT:
-- A skill listed only in a bare skills section with no job/project context is "partial", not "existing"
+- Search the FULL CV context: skills list, summary paragraph, experience highlights, AND project descriptions
+- A skill mentioned in the summary paragraph counts as contextual evidence — do NOT classify it as partial or missing
+- A skill listed in the skills section AND confirmed in experience/projects/summary is "existing"
+- A skill listed only in a bare skills section with no corroborating evidence elsewhere is "partial"
 - Never classify the same skill in two categories
-- Never penalise a candidate for using equivalent terminology (e.g. "K8s" = "Kubernetes")
+- Never penalise a candidate for using equivalent terminology (e.g. "K8s" = "Kubernetes", "REST" = "RESTful APIs")
+- For missingSections: check the CV links object — if a github/linkedin/portfolio URL is present in the links, do NOT flag it as a missing section or missing link
 - Return ONLY the JSON object — no markdown, no explanation
 `.trim()
 
@@ -49,14 +53,25 @@ export class GapDetectorAgent extends BaseAgent {
       ? `\n\n### Skill Taxonomy Context\n\n${ragContext}`
       : ''
 
+    const presentLinks = Object.entries(state.cvProfile.links)
+      .filter(([, v]) => v && v.trim() !== '')
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ')
+
     const userMessage = `
 Classify the required skills by comparing the CV profile against the role profile.${ragBlock}
+
+### CV Summary (counts as contextual evidence for skills)
+${state.cvProfile.summary}
 
 ### CV Skills (from Aria's extraction)
 ${JSON.stringify(state.cvProfile.skills, null, 2)}
 
 ### CV Experience (highlights per role)
 ${state.cvProfile.experience.map(e => `${e.role} at ${e.company}: ${e.highlights.join('; ')}`).join('\n')}
+
+### CV Links Already Present (do NOT flag these as missing)
+${presentLinks || 'none'}
 
 ### CV Sections Present
 ${state.cvProfile.sections.join(', ')}

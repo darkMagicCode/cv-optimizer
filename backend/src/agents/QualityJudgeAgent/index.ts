@@ -50,11 +50,22 @@ export class QualityJudgeAgent extends BaseAgent {
       throw new Error(`[${this.name}] Pipeline not fully completed — missing agent outputs`)
     }
 
+    const presentLinks = Object.entries(state.cvProfile.links)
+      .filter(([, v]) => v && v.trim() !== '')
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ')
+
     const userMessage = `
 Review the complete CV analysis pipeline output below for factual accuracy.
 
+### CV Summary (Aria extracted)
+${state.cvProfile.summary}
+
 ### Original CV Skills (Aria extracted)
 ${JSON.stringify(state.cvProfile.skills, null, 2)}
+
+### CV Links Present
+${presentLinks || 'none'}
 
 ### CV Sections Present
 ${state.cvProfile.sections.join(', ')}
