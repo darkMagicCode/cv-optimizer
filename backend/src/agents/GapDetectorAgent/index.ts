@@ -3,6 +3,7 @@ import { BaseAgent }    from '@/agents/base/BaseAgent'
 import type { PipelineState } from '@/types/pipeline'
 import { GapDataSchema } from './schema'
 import { logger }       from '@/utils/logger'
+import { reconcileMissingSkills } from '@/utils/skillMatcher'
 
 const OUTPUT_INSTRUCTIONS = `
 You are classifying every required skill into one of three categories based on the CV content.
@@ -90,7 +91,25 @@ ${state.roleProfile.requiredExperiences.join(', ')}
     const parsed = JSON.parse(raw)
     const result = GapDataSchema.parse(parsed)
 
-    logger.info(`[${this.name}] Gap analysis: ${result.existingSkills.length} existing, ${result.missingSkills.length} missing, ${result.partialSkills.length} partial`)
-    return { ...state, gapData: result }
+    // ------------------------------------------------------------------
+    // Deterministic post-validation: the LLM can hallucinate or normalise
+    // skill names differently and produce false negatives.  We check every
+    // skill in missingSkills against the raw CV text (+ alias table) in
+    // code.  Any skill found in the text is moved to existingSkills.
+    // ------------------------------------------------------------------
+    const { recovered, confirmed } = reconcileMissingSkills(result.missingSkills, state.cvText)
+
+    if (recovered.length > 0) {
+      logger.warn(`[${this.name}] Deterministic check recovered ${recovered.length} false-negative(s) from missingSkills: ${recovered.join(', ')}`)
+    }
+
+    const finalGapData = {
+      ...result,
+      missingSkills:  confirmed,
+      existingSkills: [...new Set([...result.existingSkills, ...recovered])],
+    }
+
+    logger.info(`[${this.name}] Gap analysis: ${finalGapData.existingSkills.length} existing, ${finalGapData.missingSkills.length} missing, ${finalGapData.partialSkills.length} partial`)
+    return { ...state, gapData: finalGapData }
   }
 }

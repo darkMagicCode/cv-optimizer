@@ -3,6 +3,7 @@ import { BaseAgent }         from '@/agents/base/BaseAgent'
 import type { PipelineState }     from '@/types/pipeline'
 import { JudgeVerdictSchema } from './schema'
 import { logger }            from '@/utils/logger'
+import { reconcileMissingSkills } from '@/utils/skillMatcher'
 
 const OUTPUT_INSTRUCTIONS = `
 You are auditing the complete CV analysis pipeline output for factual accuracy and logical consistency.
@@ -55,8 +56,23 @@ export class QualityJudgeAgent extends BaseAgent {
       .map(([k, v]) => `${k}: ${v}`)
       .join(', ')
 
+    // Deterministic pre-check: run the same text-based reconciliation used by
+    // GapDetectorAgent so the judge is told upfront about any contradictions
+    // that code can prove — it doesn't have to rely solely on its own reasoning.
+    const { recovered: knownFalseNegatives } = reconcileMissingSkills(
+      state.gapData.missingSkills,
+      state.cvText,
+    )
+
+    const deterministicBlock = knownFalseNegatives.length > 0
+      ? `\n\n### DETERMINISTIC CHECK RESULT (from code — treat as ground truth)\n` +
+        `The following skills are listed as "missing" in the gap analysis but were found in the raw CV text by regex+alias matching.\n` +
+        `These are confirmed false negatives that MUST be flagged as issues:\n` +
+        knownFalseNegatives.map(s => `- "${s}"`).join('\n')
+      : `\n\n### DETERMINISTIC CHECK RESULT\nNo false negatives detected by code-level text matching.`
+
     const userMessage = `
-Review the complete CV analysis pipeline output below for factual accuracy.
+Review the complete CV analysis pipeline output below for factual accuracy.${deterministicBlock}
 
 ### CV Summary (Aria extracted)
 ${state.cvProfile.summary}

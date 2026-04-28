@@ -28,7 +28,8 @@ function preExtractLinks(text: string): { github?: string; linkedin?: string; po
 
   const pf = [...text.matchAll(PORTFOLIO_RE)]
   if (pf.length > 0) {
-    links.portfolio = pf[0][0].replace(/\/$/, '')
+    // Strip protocol + www prefix to match github/linkedin normalisation
+    links.portfolio = pf[0][0].replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')
   }
 
   return links
